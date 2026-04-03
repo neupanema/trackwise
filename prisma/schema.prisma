@@ -1,0 +1,39 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  image     String?
+  createdAt DateTime @default(now())
+
+  habits    Habit[]
+}
+
+model Habit {
+  id        String   @id @default(cuid())
+  title     String
+  category  String   @default("General")
+  color     String   @default("#6366f1")
+  userId    String
+  createdAt DateTime @default(now())
+
+  user      User       @relation(fields: [userId], references: [id])
+  logs      HabitLog[]
+}
+
+model HabitLog {
+  id          String   @id @default(cuid())
+  habitId     String
+  completedAt DateTime @default(now())
+
+  habit       Habit    @relation(fields: [habitId], references: [id])
+}

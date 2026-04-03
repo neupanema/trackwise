@@ -32,6 +32,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex bg-[#0a0a0f]">
+
       {/* LEFT SIDE */}
       <div className="hidden lg:flex w-[45%] bg-[#0f0f1a] flex-col justify-between p-14 relative overflow-hidden border-r border-white/5">
         <div className="absolute w-72 h-72 rounded-full top-[-80px] left-[-80px]"
@@ -42,7 +43,9 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="flex items-center gap-3 relative z-10">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg"
-            style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}>⚡</div>
+            style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}>
+            ⚡
+          </div>
           <span className="text-white font-bold text-xl tracking-tight">TrackWise</span>
         </div>
 
@@ -50,46 +53,65 @@ export default function LoginPage() {
         <div className="relative z-10">
           <h2 className="text-4xl font-bold text-white leading-tight mb-4 tracking-tight">
             Build habits that{" "}
-            <span style={{ background: "linear-gradient(90deg, #6366f1, #a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+            <span style={{
+              background: "linear-gradient(90deg, #6366f1, #a78bfa)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}>
               actually stick.
             </span>
           </h2>
           <p className="text-gray-500 text-sm leading-relaxed mb-8">
-            Track your daily progress, earn streaks, and become the best version of yourself.
+            Track your daily progress, earn streaks, and become
+            the best version of yourself.
           </p>
 
+          {/* Streak tier cards */}
           <div className="flex flex-col gap-3">
             {[
-              { icon: "🔥", name: "Great", days: "5 days streak", badge: "Active", color: "rgba(251,146,60,0.15)", text: "#fb923c" },
-              { icon: "⚡", name: "Diamond", days: "10 days streak", badge: "Rare", color: "rgba(99,102,241,0.15)", text: "#818cf8" },
-              { icon: "🔱", name: "Supreme", days: "75 days streak", badge: "Elite", color: "rgba(250,204,21,0.15)", text: "#fbbf24" },
+              { icon: "🔥", name: "On Fire",      days: "5–7 day streak",   badge: "Active",  bg: "rgba(251,146,60,0.15)",  text: "#fb923c" },
+              { icon: "💎", name: "Diamond",      days: "10–14 day streak", badge: "Rare",    bg: "rgba(99,102,241,0.15)",  text: "#818cf8" },
+              { icon: "👑", name: "Legend",       days: "30–59 day streak", badge: "Elite",   bg: "rgba(250,204,21,0.15)",  text: "#fbbf24" },
             ].map((s) => (
-              <div key={s.name} className="flex items-center gap-3 rounded-xl p-3 border border-white/5"
+              <div key={s.name}
+                className="flex items-center gap-3 rounded-xl p-3 border border-white/5"
                 style={{ background: "rgba(255,255,255,0.03)" }}>
                 <div className="w-9 h-9 rounded-lg flex items-center justify-center text-base flex-shrink-0"
-                  style={{ background: s.color }}>{s.icon}</div>
+                  style={{ background: s.bg }}>
+                  {s.icon}
+                </div>
                 <div className="flex-1">
                   <div className="text-sm font-medium text-gray-200">{s.name}</div>
                   <div className="text-xs text-gray-600">{s.days}</div>
                 </div>
                 <span className="text-xs px-2 py-1 rounded-full font-medium"
-                  style={{ background: s.color, color: s.text }}>{s.badge}</span>
+                  style={{ background: s.bg, color: s.text }}>
+                  {s.badge}
+                </span>
               </div>
             ))}
           </div>
         </div>
 
-        <p className="text-xs text-gray-700 relative z-10">© 2026 TrackWise. All rights reserved.</p>
+        <p className="text-xs text-gray-700 relative z-10">
+          © 2026 TrackWise. All rights reserved.
+        </p>
       </div>
 
       {/* RIGHT SIDE */}
       <div className="flex-1 flex items-center justify-center p-8 bg-[#0d0d14]">
         <div className="w-full max-w-md">
+
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Welcome back 👋</h1>
+            <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">
+              Welcome back 👋
+            </h1>
             <p className="text-sm text-gray-500">
               Don't have an account?{" "}
-              <Link href="/signup" className="text-indigo-400 font-medium hover:text-indigo-300">Sign up</Link>
+              <Link href="/signup"
+                className="text-indigo-400 font-medium hover:text-indigo-300">
+                Sign up
+              </Link>
             </p>
           </div>
 
@@ -101,41 +123,53 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-2">Email address</label>
+              <label className="block text-xs font-medium text-gray-400 mb-2">
+                Email address
+              </label>
               <input
                 type="email"
                 placeholder="you@email.com"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 className="w-full px-4 py-3 rounded-xl text-sm text-gray-200 placeholder-gray-700 outline-none transition-all"
-                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+                style={{
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                }}
                 required
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-2">Password</label>
+              <label className="block text-xs font-medium text-gray-400 mb-2">
+                Password
+              </label>
               <input
                 type="password"
                 placeholder="••••••••"
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                 className="w-full px-4 py-3 rounded-xl text-sm text-gray-200 placeholder-gray-700 outline-none transition-all"
-                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+                style={{
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                }}
                 required
               />
             </div>
 
             <div className="text-right">
-              <a href="#" className="text-xs text-indigo-400 hover:text-indigo-300">Forgot password?</a>
+              <a href="#"
+                className="text-xs text-indigo-400 hover:text-indigo-300">
+                Forgot password?
+              </a>
             </div>
 
             <button
               type="submit"
               disabled={loading}
               className="w-full py-3 rounded-xl text-white font-medium text-sm transition-opacity disabled:opacity-50"
-              style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
-            >
+              style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}>
               {loading ? "Logging in..." : "Login to TrackWise"}
             </button>
           </form>
@@ -146,7 +180,8 @@ export default function LoginPage() {
             <div className="flex-1 h-px bg-white/5" />
           </div>
 
-          <button className="w-full py-3 rounded-xl text-sm text-gray-400 flex items-center justify-center gap-2 transition-colors hover:bg-white/5"
+          <button
+            className="w-full py-3 rounded-xl text-sm text-gray-400 flex items-center justify-center gap-2 hover:bg-white/5 transition-colors"
             style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
             <svg width="16" height="16" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
