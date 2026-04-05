@@ -87,7 +87,7 @@ export async function GET(req: Request) {
       name:     user.name,
       image:    user.image ?? null,  // ← include image
       checkins: checkinsPerUser[user.id] ?? 0,
-      isYou:    user.id === session.user.id,
+      isYou: user.id === session.user?.id,
     }))
     .sort((a, b) => b.checkins - a.checkins)
     .map((entry, index) => ({
