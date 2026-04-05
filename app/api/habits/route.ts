@@ -38,7 +38,7 @@ export async function POST(req: Request) {
       color,
       targetDays: targetDays ?? 30,
       note: note ?? "",
-      userId: session.user.id,
+      userId: session.user?.id,
       streak: 0,
     }])
     .select()
