@@ -2,10 +2,8 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { getStreakTier } from "@/lib/utils";
-// Add at the top with other imports:
 import QuoteCard from "@/components/ui/QuoteCard";
-
-
+import YearProgress from "@/components/ui/YearProgress";
 
 const tiers = [
   { name: "Seedling",     emoji: "🌱", days: 1  },
@@ -57,21 +55,21 @@ export default function DashboardPage() {
     fetchData();
   }, []);
 
-  // Real stats
-const totalHabits = habits.length;
+  const totalHabits = habits.length;
 
-// only count logs that match a habit belonging to this user
-const completedToday = habits.filter((h) =>
-  logs.some((log) => log.habitId === h.id)
-).length;
+  const completedToday = habits.filter((h) =>
+    logs.some((log) => log.habitId === h.id)
+  ).length;
 
-const pct = totalHabits > 0
-  ? Math.round((completedToday / totalHabits) * 100)
-  : 0;
-  const bestStreak     = habits.length > 0 ? Math.max(...habits.map((h) => h.streak ?? 0)) : 0;
+  const pct = totalHabits > 0
+    ? Math.round((completedToday / totalHabits) * 100)
+    : 0;
+
+  const bestStreak     = habits.length > 0
+    ? Math.max(...habits.map((h) => h.streak ?? 0))
+    : 0;
   const totalStreakDays = habits.reduce((sum, h) => sum + (h.streak ?? 0), 0);
 
-  // Average progress vs each habit's own targetDays
   const avgProgress = habits.length > 0
     ? Math.round(
         habits.reduce((sum, h) =>
@@ -86,34 +84,38 @@ const pct = totalHabits > 0
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen" style={{ background: "#08080f" }}>
+      <div className="flex items-center justify-center h-screen"
+        style={{ background: "#08080f" }}>
         <div className="text-center">
           <div className="text-3xl mb-3">⚡</div>
-          <div className="text-sm" style={{ color: "#4b5563" }}>Loading your habits...</div>
+          <div className="text-sm" style={{ color: "#4b5563" }}>
+            Loading your habits...
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-  <div className="p-8 max-w-5xl mx-auto">
+    <div className="p-8 max-w-5xl mx-auto">
 
-    {/* Header */}
-    <div className="mb-7">
-      <h1 className="text-2xl font-bold text-white mb-1 tracking-tight">
-        Welcome back, {session?.user?.name?.split(" ")[0]} 👋
-      </h1>
-      <p className="text-sm" style={{ color: "#4b5563" }}>
-        Track your habits and stay motivated every day.
-      </p>
-    </div>
+      {/* Header */}
+      <div className="mb-7">
+        <h1 className="text-2xl font-bold text-white mb-1 tracking-tight">
+          Welcome back, {session?.user?.name?.split(" ")[0]} 👋
+        </h1>
+        <p className="text-sm" style={{ color: "#4b5563" }}>
+          Track your habits and stay motivated every day.
+        </p>
+      </div>
 
-    {/* ← ADD QUOTE HERE */}
-    <QuoteCard />
+      {/* Quote */}
+      <QuoteCard />
 
-    {/* Progress card continues below... */}
-    {totalHabits === 0 ? (
-      // ... rest of your existing code
+      {/* Year Progress */}
+    
+      {/* Empty state */}
+      {totalHabits === 0 ? (
         <div className="rounded-2xl p-12 text-center"
           style={{ background: "#0d0d16", border: "1px solid rgba(255,255,255,0.06)" }}>
           <div className="text-4xl mb-4">🌱</div>
@@ -169,10 +171,10 @@ const pct = totalHabits > 0
           {/* Stat cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
             {[
-              { icon: "🎯", val: totalHabits,                       label: "Total Habits",      bg: "rgba(20,184,166,0.12)"  },
-              { icon: "📈", val: `${completedToday}/${totalHabits}`, label: "Completed Today",   bg: "rgba(99,102,241,0.12)", badge: `${pct}%`,          badgeColor: "#34d399" },
-              { icon: "🏆", val: `${bestStreak} days`,              label: "Best Streak",       bg: "rgba(251,191,36,0.12)", badge: currentTier.name,   badgeColor: "#a5b4fc" },
-              { icon: "🔥", val: totalStreakDays,                   label: "Total Streak Days", bg: "rgba(236,72,153,0.12)" },
+              { icon: "🎯", val: totalHabits,                        label: "Total Habits",      bg: "rgba(20,184,166,0.12)"  },
+              { icon: "📈", val: `${completedToday}/${totalHabits}`,  label: "Completed Today",   bg: "rgba(99,102,241,0.12)", badge: `${pct}%`,        badgeColor: "#34d399" },
+              { icon: "🏆", val: `${bestStreak} days`,               label: "Best Streak",       bg: "rgba(251,191,36,0.12)", badge: currentTier.name, badgeColor: "#a5b4fc" },
+              { icon: "🔥", val: totalStreakDays,                    label: "Total Streak Days", bg: "rgba(236,72,153,0.12)" },
             ].map((c) => (
               <div key={c.label} className="rounded-2xl p-4"
                 style={{ background: "#0d0d16", border: "1px solid rgba(255,255,255,0.06)" }}>
@@ -190,6 +192,7 @@ const pct = totalHabits > 0
             ))}
           </div>
 
+<YearProgress />
           {/* Achievements */}
           <div className="flex items-center gap-2 mb-3">
             <span className="text-base">🏅</span>

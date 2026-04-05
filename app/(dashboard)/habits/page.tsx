@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Pencil, Trash2, Plus } from "lucide-react";
 
+
 interface Habit {
   id: string;
   title: string;

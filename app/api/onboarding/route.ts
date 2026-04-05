@@ -6,8 +6,6 @@ export async function POST(req: Request) {
   // get session on SERVER side (more reliable than client)
   const session = await auth();
 
-  // log to check what we get
-  console.log("Onboarding session user:", session?.user);
 
   if (!session?.user?.id) {
     return NextResponse.json(
@@ -35,7 +33,7 @@ export async function POST(req: Request) {
       .insert(habitRows);
 
     if (error) {
-      console.log("Insert error:", error);
+     
       return NextResponse.json(
         { error: error.message },
         { status: 500 }

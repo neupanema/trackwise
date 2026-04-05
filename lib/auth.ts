@@ -14,7 +14,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        // find user in database
         const { data: user } = await supabase
           .from("User")
           .select("*")
@@ -23,7 +22,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         if (!user) return null;
 
-        // check password
         const passwordMatch = await bcrypt.compare(
           credentials.password as string,
           user.password
@@ -35,30 +33,23 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           id:    user.id,
           name:  user.name,
           email: user.email,
-          image: user.image ?? null, // ← return image on login
+          image: user.image ?? null,
         };
       },
     }),
   ],
 
-  session: {
-    strategy: "jwt",
-  },
+  session: { strategy: "jwt" },
 
-  pages: {
-    signIn: "/login",
-  },
+  pages: { signIn: "/login" },
 
   callbacks: {
     async jwt({ token, user }) {
-      // runs right after login
       if (user) {
         token.id    = user.id;
-        token.image = user.image; // ← store image in token
+        token.image = user.image;
       }
 
-      // runs on EVERY request — fetch latest from DB
-      // so profile picture updates are reflected immediately
       if (token.id) {
         const { data: dbUser } = await supabase
           .from("User")
@@ -67,8 +58,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           .maybeSingle();
 
         if (dbUser) {
-          token.image = dbUser.image; // ← always latest image
-          token.name  = dbUser.name;  // ← always latest name
+          token.image = dbUser.image;
+          token.name  = dbUser.name;
         }
       }
 
@@ -78,7 +69,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async session({ session, token }) {
       if (token) {
         session.user.id    = token.id    as string;
-        session.user.image = token.image as string; // ← image in session
+        session.user.image = token.image as string;
         session.user.name  = token.name  as string;
       }
       return session;
