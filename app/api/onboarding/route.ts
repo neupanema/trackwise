@@ -3,9 +3,7 @@ import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
-  // get session on SERVER side (more reliable than client)
   const session = await auth();
-
 
   if (!session?.user?.id) {
     return NextResponse.json(
@@ -14,9 +12,10 @@ export async function POST(req: Request) {
     );
   }
 
+  const userId = session.user.id; // ← extract here so TypeScript is happy
+
   const { habits, targetDays } = await req.json();
 
-  // save habits only if user selected some
   if (habits && habits.length > 0) {
     const habitRows = habits.map((h: any) => ({
       title:      h.title,
@@ -25,7 +24,7 @@ export async function POST(req: Request) {
       targetDays: targetDays ?? 21,
       note:       "",
       streak:     0,
-      userId:     session.user.id,   // ← uses SERVER session
+      userId:     userId,           // ← use extracted variable
     }));
 
     const { error } = await supabase
@@ -33,7 +32,6 @@ export async function POST(req: Request) {
       .insert(habitRows);
 
     if (error) {
-     
       return NextResponse.json(
         { error: error.message },
         { status: 500 }
@@ -41,15 +39,10 @@ export async function POST(req: Request) {
     }
   }
 
-  // mark user as onboarded
-  const { error: updateError } = await supabase
+  await supabase
     .from("User")
     .update({ onboarded: true })
-    .eq("id", session.user.id);
-
-  if (updateError) {
-    console.log("Update error:", updateError);
-  }
+    .eq("id", userId);              // ← use extracted variable
 
   return NextResponse.json({ success: true });
 }
