@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 
-// same as add page
 const categories = [
   { label: "🧠 Mind",     value: "Mind"     },
   { label: "💪 Fitness",  value: "Fitness"  },
@@ -21,26 +20,23 @@ const colors = [
 const quickTargets = [7, 21, 30, 90];
 
 export default function EditHabitPage() {
-  const router   = useRouter();
-  const params   = useParams();   // reads the [id] from the URL
-  const id       = params.id as string;
+  const router = useRouter();
+  const params = useParams();
+  const id     = params.id as string;
 
-  // form state — starts empty, gets filled when habit loads
-  const [title,      setTitle]      = useState("");
-  const [category,   setCategory]   = useState("Mind");
-  const [color,      setColor]      = useState("#6366f1");
-  const [targetDays, setTargetDays] = useState(30);
-  const [note,       setNote]       = useState("");
+  const [title,           setTitle]           = useState("");
+  const [category,        setCategory]        = useState("Mind");
+  const [color,           setColor]           = useState("#6366f1");
+  const [targetDays,      setTargetDays]      = useState(30);
+  const [note,            setNote]            = useState("");
+  const [restDaysPerWeek, setRestDaysPerWeek] = useState(0); // ← new
+  const [loading,         setLoading]         = useState(true);
+  const [saving,          setSaving]          = useState(false);
+  const [error,           setError]           = useState("");
 
-  // page state
-  const [loading,  setLoading]  = useState(true);  // loading habit data
-  const [saving,   setSaving]   = useState(false); // saving changes
-  const [error,    setError]    = useState("");
-
-  // ── Load existing habit when page opens ──
   useEffect(() => {
     async function loadHabit() {
-      const res  = await fetch(`/api/habits/${id}`); // GET /api/habits/abc123
+      const res  = await fetch(`/api/habits/${id}`);
       const data = await res.json();
 
       if (!res.ok) {
@@ -49,29 +45,35 @@ export default function EditHabitPage() {
         return;
       }
 
-      // pre-fill form with existing values
       const h = data.habit;
       setTitle(h.title);
       setCategory(h.category);
       setColor(h.color);
       setTargetDays(h.targetDays ?? 30);
       setNote(h.note ?? "");
+      setRestDaysPerWeek(h.restDaysPerWeek ?? 0); // ← new
       setLoading(false);
     }
 
     loadHabit();
-  }, [id]); // runs when id changes (when page first loads)
+  }, [id]);
 
-  // ── Save changes ──
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     setError("");
 
     const res = await fetch(`/api/habits/${id}`, {
-      method: "PUT",  // PUT = update existing
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, category, color, targetDays, note }),
+      body: JSON.stringify({
+        title,
+        category,
+        color,
+        targetDays,
+        note,
+        restDaysPerWeek, // ← new
+      }),
     });
 
     const data = await res.json();
@@ -82,10 +84,9 @@ export default function EditHabitPage() {
       return;
     }
 
-    router.push("/habits"); // success → go back to habits list
+    router.push("/habits");
   }
 
-  // ── Loading state ──
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen"
@@ -131,10 +132,14 @@ export default function EditHabitPage() {
             style={{ background: color + "22", color }}>
             <div className="w-2 h-2 rounded-full" style={{ background: color }} />
             {title || "My Habit"} • {category} • {targetDays} days
+            {restDaysPerWeek > 0 && (
+              <span style={{ color: "#a5b4fc" }}>
+                • {restDaysPerWeek} rest/wk
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Error */}
         {error && (
           <div className="mb-4 px-4 py-3 rounded-xl text-sm"
             style={{
@@ -267,6 +272,64 @@ export default function EditHabitPage() {
                 color: "#e5e7eb",
               }}
             />
+          </div>
+
+          {/* ── REST DAYS ── */}
+          <div className="mb-5">
+            <label className="block text-xs font-medium mb-1"
+              style={{ color: "#9ca3af" }}>
+              Rest Days per Week
+            </label>
+            <p className="text-xs mb-3" style={{ color: "#4b5563" }}>
+              On rest days your streak freezes instead of breaking. Resets every Monday.
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { val: 0, label: "No Rest",  emoji: "💪", desc: "Every day"   },
+                { val: 1, label: "1 Rest",   emoji: "🛌", desc: "6 days/week" },
+                { val: 2, label: "2 Rest",   emoji: "🛌", desc: "5 days/week" },
+              ].map((opt) => {
+                const active = restDaysPerWeek === opt.val;
+                return (
+                  <button
+                    key={opt.val}
+                    type="button"
+                    onClick={() => setRestDaysPerWeek(opt.val)}
+                    className="py-3 px-3 rounded-xl text-center transition-all"
+                    style={{
+                      background: active
+                        ? "rgba(99,102,241,0.15)"
+                        : "rgba(255,255,255,0.03)",
+                      border: active
+                        ? "1px solid rgba(99,102,241,0.35)"
+                        : "1px solid rgba(255,255,255,0.07)",
+                    }}>
+                    <div className="text-lg mb-1">{opt.emoji}</div>
+                    <div className="text-xs font-medium"
+                      style={{ color: active ? "#a5b4fc" : "#e5e7eb" }}>
+                      {opt.label}
+                    </div>
+                    <div className="text-[10px] mt-0.5"
+                      style={{ color: "#4b5563" }}>
+                      {opt.desc}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {restDaysPerWeek > 0 && (
+              <div className="mt-3 rounded-xl px-3 py-2"
+                style={{
+                  background: "rgba(99,102,241,0.08)",
+                  border: "1px solid rgba(99,102,241,0.15)",
+                }}>
+                <p className="text-xs" style={{ color: "#a5b4fc" }}>
+                  🛌 You get <b>{restDaysPerWeek} rest day{restDaysPerWeek > 1 ? "s" : ""}</b> per week.
+                  Use it wisely — unused rest days do not carry over!
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Note */}

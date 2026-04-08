@@ -2,24 +2,22 @@ import { supabase } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
-// ── Helper: get date string YYYY-MM-DD ignoring timezone ──
 function toDateString(date: Date): string {
-  return date.toISOString().split("T")[0];
-  // "2026-03-29T14:30:00.000Z" → "2026-03-29"
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
-// ── Helper: calculate streak from logs ──
 async function calculateStreak(habitId: string): Promise<number> {
   const { data: logs } = await supabase
     .from("HabitLog")
-    .select("completedAt")
+    .select("completedAt, isRestDay")
     .eq("habitId", habitId)
     .order("completedAt", { ascending: false });
 
   if (!logs || logs.length === 0) return 0;
 
-  // convert all logs to simple date strings
-  // "2026-03-29T14:30:00.000Z" → "2026-03-29"
   const logDates = new Set(
     logs.map((log) => toDateString(new Date(log.completedAt)))
   );
@@ -27,50 +25,62 @@ async function calculateStreak(habitId: string): Promise<number> {
   let streak = 0;
   const today = new Date();
 
-  // check each day going backwards from today
   for (let i = 0; i < 365; i++) {
     const checkDate = new Date(today);
     checkDate.setDate(today.getDate() - i);
     const dateStr = toDateString(checkDate);
 
     if (logDates.has(dateStr)) {
-      streak++; // this day exists → count it
+      streak++;
     } else {
-      break; // gap found → stop
+      if (i === 0) continue;
+      break;
     }
   }
 
   return streak;
 }
 
-// ── GET today's start and end ──
 function getTodayRange() {
-  const today = new Date();
-  const start = new Date(today);
+  const now   = new Date();
+  const start = new Date(now);
   start.setHours(0, 0, 0, 0);
-  const end = new Date(today);
+  const end = new Date(now);
   end.setHours(23, 59, 59, 999);
   return { start, end };
 }
 
-// ── POST = check in habit for today ──
+function getWeekStart(): Date {
+  const now  = new Date();
+  const day  = now.getDay();
+  const diff = day === 0 ? 6 : day - 1;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - diff);
+  monday.setHours(0, 0, 0, 0);
+  return monday;
+}
+
+// POST = check in OR use rest day
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
-  const { id } = await params;
+  const { id }  = await params;
 
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Not logged in" }, { status: 401 });
   }
 
+  const body      = await req.json();
+  const isRestDay = body.isRestDay === true;
+
   const { start, end } = getTodayRange();
 
-  // check if already checked in today
+  // check if already logged today
   const { data: existing } = await supabase
     .from("HabitLog")
-    .select("id")
+    .select("id, isRestDay")
     .eq("habitId", id)
     .gte("completedAt", start.toISOString())
     .lte("completedAt", end.toISOString())
@@ -78,42 +88,97 @@ export async function POST(
 
   if (existing) {
     return NextResponse.json(
-      { error: "Already checked in today" },
+      { error: "Already logged today" },
       { status: 400 }
     );
   }
 
-  // save today's check in
+  // if rest day — validate allowance
+  if (isRestDay) {
+    const { data: habit } = await supabase
+      .from("Habit")
+      .select("restDaysPerWeek")
+      .eq("id", id)
+      .maybeSingle();
+
+    const allowed = habit?.restDaysPerWeek ?? 0;
+
+    if (allowed === 0) {
+      return NextResponse.json(
+        { error: "No rest days allowed for this habit" },
+        { status: 400 }
+      );
+    }
+
+    // count rest days used this week
+    const weekStart = getWeekStart();
+    const { data: restLogs } = await supabase
+      .from("HabitLog")
+      .select("id")
+      .eq("habitId", id)
+      .eq("isRestDay", true)
+      .gte("completedAt", weekStart.toISOString());
+
+    const usedThisWeek = restLogs?.length ?? 0;
+
+    if (usedThisWeek >= allowed) {
+      return NextResponse.json(
+        { error: `All ${allowed} rest day(s) already used this week` },
+        { status: 400 }
+      );
+    }
+  }
+
+  // save the log
   const { error: insertError } = await supabase
     .from("HabitLog")
     .insert([{
-      habitId: id,
+      habitId:     id,
       completedAt: new Date().toISOString(),
+      isRestDay:   isRestDay,
     }]);
 
   if (insertError) {
-    return NextResponse.json({ error: insertError.message }, { status: 500 });
+    return NextResponse.json(
+      { error: insertError.message },
+      { status: 500 }
+    );
   }
 
-  // recalculate streak
-  const streak = await calculateStreak(id);
+  // get current streak
+  const { data: habit } = await supabase
+    .from("Habit")
+    .select("streak")
+    .eq("id", id)
+    .maybeSingle();
 
-  // update streak on the habit
+  let newStreak: number;
+
+  if (isRestDay) {
+    // rest day → streak stays FROZEN (same value)
+    newStreak = habit?.streak ?? 0;
+  } else {
+    // normal check-in → streak grows
+    const streak        = await calculateStreak(id);
+    const currentStreak = habit?.streak ?? 0;
+    newStreak           = Math.max(streak, currentStreak + 1);
+  }
+
   await supabase
     .from("Habit")
-    .update({ streak })
+    .update({ streak: newStreak })
     .eq("id", id);
 
-  return NextResponse.json({ success: true, streak });
+  return NextResponse.json({ success: true, streak: newStreak, isRestDay });
 }
 
-// ── DELETE = undo today's check in ──
+// DELETE = undo today's log
 export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
-  const { id } = await params;
+  const { id }  = await params;
 
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Not logged in" }, { status: 401 });
@@ -121,10 +186,9 @@ export async function DELETE(
 
   const { start, end } = getTodayRange();
 
-  // find today's log
   const { data: existing } = await supabase
     .from("HabitLog")
-    .select("id")
+    .select("id, isRestDay")
     .eq("habitId", id)
     .gte("completedAt", start.toISOString())
     .lte("completedAt", end.toISOString())
@@ -132,25 +196,32 @@ export async function DELETE(
 
   if (!existing) {
     return NextResponse.json(
-      { error: "No check in found for today" },
+      { error: "No log found for today" },
       { status: 404 }
     );
   }
 
-  // delete today's log
   await supabase
     .from("HabitLog")
     .delete()
     .eq("id", existing.id);
 
-  // recalculate streak
-  const streak = await calculateStreak(id);
+  const { data: habit } = await supabase
+    .from("Habit")
+    .select("streak")
+    .eq("id", id)
+    .maybeSingle();
 
-  // update streak on the habit
+  // undo rest day → streak unchanged
+  // undo check-in → streak -1
+  const newStreak = existing.isRestDay
+    ? (habit?.streak ?? 0)
+    : Math.max((habit?.streak ?? 1) - 1, 0);
+
   await supabase
     .from("Habit")
-    .update({ streak })
+    .update({ streak: newStreak })
     .eq("id", id);
 
-  return NextResponse.json({ success: true, streak });
+  return NextResponse.json({ success: true, streak: newStreak });
 }

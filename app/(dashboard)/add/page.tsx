@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-
 const categories = [
   { label: "🧠 Mind",     value: "Mind"     },
   { label: "💪 Fitness",  value: "Fitness"  },
@@ -32,13 +31,14 @@ export default function AddHabitPage() {
   const router = useRouter();
 
   // form state
-  const [title,      setTitle]      = useState("");
-  const [category,   setCategory]   = useState("Mind");
-  const [color,      setColor]      = useState("#6366f1");
-  const [targetDays, setTargetDays] = useState(21);
-  const [note,       setNote]       = useState("");
-  const [loading,    setLoading]    = useState(false);
-  const [error,      setError]      = useState("");
+  const [title,           setTitle]           = useState("");
+  const [category,        setCategory]        = useState("Mind");
+  const [color,           setColor]           = useState("#6366f1");
+  const [targetDays,      setTargetDays]      = useState(21);
+  const [note,            setNote]            = useState("");
+  const [restDaysPerWeek, setRestDaysPerWeek] = useState(0); // ← new
+  const [loading,         setLoading]         = useState(false);
+  const [error,           setError]           = useState("");
 
   // AI state
   const [goal,        setGoal]        = useState("");
@@ -80,7 +80,7 @@ export default function AddHabitPage() {
     setCategory(s.category);
     setColor(s.color);
     setTargetDays(s.targetDays ?? 21);
-    setShowAI(false); // collapse AI section
+    setShowAI(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -90,11 +90,12 @@ export default function AddHabitPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        title:      s.title,
-        category:   s.category,
-        color:      s.color,
-        targetDays: s.targetDays ?? 21,
-        note:       s.reason,
+        title:           s.title,
+        category:        s.category,
+        color:           s.color,
+        targetDays:      s.targetDays ?? 21,
+        note:            s.reason,
+        restDaysPerWeek: 0,
       }),
     });
     if (res.ok) router.push("/habits");
@@ -113,7 +114,14 @@ export default function AddHabitPage() {
     const res = await fetch("/api/habits", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, category, color, targetDays, note }),
+      body: JSON.stringify({
+        title,
+        category,
+        color,
+        targetDays,
+        note,
+        restDaysPerWeek, // ← new
+      }),
     });
 
     const data = await res.json();
@@ -148,7 +156,7 @@ export default function AddHabitPage() {
             <span className="text-sm font-semibold text-white">AI Habit Coach</span>
             <span className="text-[10px] px-2 py-0.5 rounded-full font-medium"
               style={{ background: "rgba(99,102,241,0.15)", color: "#a5b4fc" }}>
-              Powered by Groq AI 
+              Powered by Groq AI
             </span>
           </div>
           <button
@@ -222,11 +230,8 @@ export default function AddHabitPage() {
                       background: "rgba(255,255,255,0.03)",
                       border: `1px solid ${s.color}33`,
                     }}>
-
-                    {/* Color dot */}
                     <div className="w-3 h-3 rounded-full flex-shrink-0 mt-0.5"
                       style={{ background: s.color }} />
-
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold text-white mb-0.5">
                         {s.title}
@@ -238,8 +243,6 @@ export default function AddHabitPage() {
                         {s.reason}
                       </div>
                     </div>
-
-                    {/* Action buttons */}
                     <div className="flex flex-col gap-1.5 flex-shrink-0">
                       <button
                         type="button"
@@ -287,6 +290,11 @@ export default function AddHabitPage() {
             style={{ background: color + "22", color }}>
             <div className="w-2 h-2 rounded-full" style={{ background: color }} />
             {title || "My Habit"} • {category} • {targetDays} days
+            {restDaysPerWeek > 0 && (
+              <span style={{ color: "#a5b4fc" }}>
+                • {restDaysPerWeek} rest/wk
+              </span>
+            )}
           </div>
         </div>
 
@@ -422,6 +430,64 @@ export default function AddHabitPage() {
                 color: "#e5e7eb",
               }}
             />
+          </div>
+
+          {/* ── REST DAYS ── */}
+          <div className="mb-5">
+            <label className="block text-xs font-medium mb-1"
+              style={{ color: "#9ca3af" }}>
+              Rest Days per Week
+            </label>
+            <p className="text-xs mb-3" style={{ color: "#4b5563" }}>
+              On rest days your streak freezes instead of breaking. Resets every Monday.
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { val: 0, label: "No Rest",  emoji: "💪", desc: "Every day"   },
+                { val: 1, label: "1 Rest",   emoji: "🛌", desc: "6 days/week" },
+                { val: 2, label: "2 Rest",   emoji: "🛌", desc: "5 days/week" },
+              ].map((opt) => {
+                const active = restDaysPerWeek === opt.val;
+                return (
+                  <button
+                    key={opt.val}
+                    type="button"
+                    onClick={() => setRestDaysPerWeek(opt.val)}
+                    className="py-3 px-3 rounded-xl text-center transition-all"
+                    style={{
+                      background: active
+                        ? "rgba(99,102,241,0.15)"
+                        : "rgba(255,255,255,0.03)",
+                      border: active
+                        ? "1px solid rgba(99,102,241,0.35)"
+                        : "1px solid rgba(255,255,255,0.07)",
+                    }}>
+                    <div className="text-lg mb-1">{opt.emoji}</div>
+                    <div className="text-xs font-medium"
+                      style={{ color: active ? "#a5b4fc" : "#e5e7eb" }}>
+                      {opt.label}
+                    </div>
+                    <div className="text-[10px] mt-0.5"
+                      style={{ color: "#4b5563" }}>
+                      {opt.desc}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {restDaysPerWeek > 0 && (
+              <div className="mt-3 rounded-xl px-3 py-2"
+                style={{
+                  background: "rgba(99,102,241,0.08)",
+                  border: "1px solid rgba(99,102,241,0.15)",
+                }}>
+                <p className="text-xs" style={{ color: "#a5b4fc" }}>
+                  🛌 You get <b>{restDaysPerWeek} rest day{restDaysPerWeek > 1 ? "s" : ""}</b> per week.
+                  Use it wisely — unused rest days do not carry over!
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Note */}

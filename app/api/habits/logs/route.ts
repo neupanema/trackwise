@@ -9,7 +9,6 @@ export async function GET() {
     return NextResponse.json({ error: "Not logged in" }, { status: 401 });
   }
 
-  // get start and end of today
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -18,9 +17,9 @@ export async function GET() {
 
   const { data: logs, error } = await supabase
     .from("HabitLog")
-    .select("*")
-    .gte("completedAt", today.toISOString())  // after midnight
-    .lt("completedAt", tomorrow.toISOString()) // before tomorrow
+    .select("id, habitId, completedAt, isRestDay") // ← added isRestDay
+    .gte("completedAt", today.toISOString())
+    .lt("completedAt", tomorrow.toISOString());
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

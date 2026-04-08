@@ -2,7 +2,6 @@ import { supabase } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
-// converts any date to YYYY-MM-DD string
 function toDateString(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -10,22 +9,18 @@ function toDateString(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-// calculate streak by looking at logs
 async function calculateStreak(habitId: string): Promise<number> {
   const { data: logs } = await supabase
     .from("HabitLog")
-    .select("completedAt")
+    .select("completedAt, isRestDay")
     .eq("habitId", habitId)
     .order("completedAt", { ascending: false });
 
   if (!logs || logs.length === 0) return 0;
 
-  // get all unique dates from logs
+  // both regular and rest days count toward streak continuity
   const logDates = new Set(
-    logs.map((log) => {
-      const d = new Date(log.completedAt);
-      return toDateString(d);
-    })
+    logs.map((log) => toDateString(new Date(log.completedAt)))
   );
 
   let streak = 0;
@@ -39,8 +34,6 @@ async function calculateStreak(habitId: string): Promise<number> {
     if (logDates.has(dateStr)) {
       streak++;
     } else {
-      // day 0 = today, if not checked yet that's OK
-      // don't break streak just because today isn't done yet
       if (i === 0) continue;
       break;
     }
@@ -49,7 +42,6 @@ async function calculateStreak(habitId: string): Promise<number> {
   return streak;
 }
 
-// get today's date range in UTC that covers the full local day
 function getTodayRange() {
   const now   = new Date();
   const start = new Date(now);
@@ -59,8 +51,18 @@ function getTodayRange() {
   return { start, end };
 }
 
-// POST = check in habit for today
-export async function POST(
+function getWeekStart(): Date {
+  const now  = new Date();
+  const day  = now.getDay();
+  const diff = day === 0 ? 6 : day - 1;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - diff);
+  monday.setHours(0, 0, 0, 0);
+  return monday;
+}
+
+// ── GET — fetch single habit for edit page ──
+export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -71,63 +73,58 @@ export async function POST(
     return NextResponse.json({ error: "Not logged in" }, { status: 401 });
   }
 
-  const { start, end } = getTodayRange();
-
-  // check if already checked in today
-  const { data: existing } = await supabase
-    .from("HabitLog")
-    .select("id")
-    .eq("habitId", id)
-    .gte("completedAt", start.toISOString())
-    .lte("completedAt", end.toISOString())
-    .maybeSingle();
-
-  if (existing) {
-    return NextResponse.json(
-      { error: "Already checked in today" },
-      { status: 400 }
-    );
-  }
-
-  // save check in with current timestamp
-  const { error: insertError } = await supabase
-    .from("HabitLog")
-    .insert([{
-      habitId:     id,
-      completedAt: new Date().toISOString(),
-    }]);
-
-  if (insertError) {
-    return NextResponse.json(
-      { error: insertError.message },
-      { status: 500 }
-    );
-  }
-
-  // calculate new streak
-  const streak = await calculateStreak(id);
-
-  // get current streak to make sure we never go backwards
-  const { data: habit } = await supabase
+  const { data: habit, error } = await supabase
     .from("Habit")
-    .select("streak")
+    .select("*")
     .eq("id", id)
+    .eq("userId", session.user.id)
     .maybeSingle();
 
-  // use whichever is higher
-  const currentStreak = habit?.streak ?? 0;
-  const newStreak     = Math.max(streak, currentStreak + 1);
+  if (error || !habit) {
+    return NextResponse.json({ error: "Habit not found" }, { status: 404 });
+  }
 
-  // update habit streak
-  await supabase
-    .from("Habit")
-    .update({ streak: newStreak })
-    .eq("id", id);
-
-  return NextResponse.json({ success: true, streak: newStreak });
+  return NextResponse.json({ habit });
 }
 
-// DELETE = undo today's check in
+// ── PUT — update habit ──
+export async function PUT(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth();
+  const { id }  = await params;
+
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Not logged in" }, { status: 401 });
+  }
+
+  const { title, category, color, targetDays, note, restDaysPerWeek } =
+    await req.json();
+
+  const { data, error } = await supabase
+    .from("Habit")
+    .update({
+      title,
+      category,
+      color,
+      targetDays,
+      note:            note            ?? "",
+      restDaysPerWeek: restDaysPerWeek ?? 0, // ← new
+    })
+    .eq("id", id)
+    .eq("userId", session.user.id)
+    .select()
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ habit: data });
+}
+
+// ── DELETE — delete habit and its logs ──
 export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -139,47 +136,9 @@ export async function DELETE(
     return NextResponse.json({ error: "Not logged in" }, { status: 401 });
   }
 
-  const { start, end } = getTodayRange();
+  // delete logs first then habit
+  await supabase.from("HabitLog").delete().eq("habitId", id);
+  await supabase.from("Habit").delete().eq("id", id).eq("userId", session.user.id);
 
-  // find today's log
-  const { data: existing } = await supabase
-    .from("HabitLog")
-    .select("id")
-    .eq("habitId", id)
-    .gte("completedAt", start.toISOString())
-    .lte("completedAt", end.toISOString())
-    .maybeSingle();
-
-  if (!existing) {
-    return NextResponse.json(
-      { error: "No check in found for today" },
-      { status: 404 }
-    );
-  }
-
-  // delete today's log
-  await supabase
-    .from("HabitLog")
-    .delete()
-    .eq("id", existing.id);
-
-  // recalculate streak
-  const streak = await calculateStreak(id);
-
-  // get current streak
-  const { data: habit } = await supabase
-    .from("Habit")
-    .select("streak")
-    .eq("id", id)
-    .maybeSingle();
-
-  // subtract 1 but never below 0
-  const newStreak = Math.max((habit?.streak ?? 1) - 1, 0);
-
-  await supabase
-    .from("Habit")
-    .update({ streak: newStreak })
-    .eq("id", id);
-
-  return NextResponse.json({ success: true, streak: newStreak });
+  return NextResponse.json({ success: true });
 }

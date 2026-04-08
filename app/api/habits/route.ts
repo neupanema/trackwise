@@ -24,11 +24,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Not logged in" }, { status: 401 });
   }
 
-  const { title, category, color, targetDays, note } = await req.json();
+  const { title, category, color, targetDays, note, restDaysPerWeek } =
+    await req.json();
 
   if (!title || !category || !color) {
     return NextResponse.json({ error: "All fields required" }, { status: 400 });
   }
+
+  const userId = session.user.id;
 
   const { data, error } = await supabase
     .from("Habit")
@@ -36,9 +39,10 @@ export async function POST(req: Request) {
       title,
       category,
       color,
-      targetDays: targetDays ?? 30,
-      note: note ?? "",
-      userId: session.user?.id,
+      targetDays:      targetDays      ?? 30,
+      note:            note            ?? "",
+      restDaysPerWeek: restDaysPerWeek ?? 0,
+      userId,
       streak: 0,
     }])
     .select()

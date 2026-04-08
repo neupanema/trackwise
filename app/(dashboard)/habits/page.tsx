@@ -3,15 +3,22 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Pencil, Trash2, Plus } from "lucide-react";
 
-
 interface Habit {
-  id: string;
-  title: string;
-  category: string;
-  color: string;
-  streak: number;
-  targetDays: number;
-  note: string;
+  id:              string;
+  title:           string;
+  category:        string;
+  color:           string;
+  streak:          number;
+  targetDays:      number;
+  note:            string;
+  restDaysPerWeek: number; // ← new
+}
+
+interface HabitLog {
+  id:          string;
+  habitId:     string;
+  completedAt: string;
+  isRestDay:   boolean; // ← new
 }
 
 function getStreakTier(days: number) {
@@ -33,18 +40,18 @@ const categories = [
 ];
 
 export default function HabitsPage() {
-  const [habits,    setHabits]    = useState<Habit[]>([]);
-  const [completed, setCompleted] = useState<Set<string>>(new Set());
-  const [loading,   setLoading]   = useState(true);
-  const [search,    setSearch]    = useState("");
-  const [category,  setCategory]  = useState("All Categories");
-  const [deleting,  setDeleting]  = useState<string | null>(null);
-  const [checking,  setChecking]  = useState<string | null>(null);
+  const [habits,   setHabits]   = useState<Habit[]>([]);
+  const [logs,     setLogs]     = useState<HabitLog[]>([]); // ← changed from Set to array
+  const [loading,  setLoading]  = useState(true);
+  const [search,   setSearch]   = useState("");
+  const [category, setCategory] = useState("All Categories");
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [checking, setChecking] = useState<string | null>(null);
+  const [resting,  setResting]  = useState<string | null>(null);
 
   useEffect(() => { fetchData(); }, []);
 
   async function fetchData() {
-    // fetch habits AND today's logs at the same time
     const [habitsRes, logsRes] = await Promise.all([
       fetch("/api/habits"),
       fetch("/api/habits/logs"),
@@ -54,36 +61,47 @@ export default function HabitsPage() {
     const logsData   = await logsRes.json();
 
     setHabits(habitsData.habits ?? []);
-
-    // build a set of habitIds that are done today
-    const doneToday = new Set<string>(
-      (logsData.logs ?? []).map((log: any) => log.habitId)
-    );
-    setCompleted(doneToday);
+    setLogs(logsData.logs ?? []);
     setLoading(false);
   }
 
+  // check if habit is logged today (regular or rest)
+  function isLoggedToday(habitId: string): boolean {
+    return logs.some((l) => l.habitId === habitId);
+  }
+
+  // check if habit is resting today specifically
+  function isRestingToday(habitId: string): boolean {
+    return logs.some((l) => l.habitId === habitId && l.isRestDay);
+  }
+
+  // check if habit is done (regular check-in) today
+  function isDoneToday(habitId: string): boolean {
+    return logs.some((l) => l.habitId === habitId && !l.isRestDay);
+  }
+
+  // count rest days used this week for a habit
+  function restDaysUsed(habitId: string): number {
+    // we only track today's logs here so we fetch from API when needed
+    // for display purposes just check today
+    return logs.filter((l) => l.habitId === habitId && l.isRestDay).length;
+  }
+
   async function toggleComplete(habit: Habit) {
-    if (checking) return; // prevent double clicks
+    if (checking) return;
     setChecking(habit.id);
 
-    const isDone = completed.has(habit.id);
+    const alreadyLogged = isLoggedToday(habit.id);
 
-    if (isDone) {
-      // undo check in → DELETE
-      const res = await fetch(`/api/habits/${habit.id}/checkin`, {
+    if (alreadyLogged) {
+      // undo today's log
+      const res  = await fetch(`/api/habits/${habit.id}/checkin`, {
         method: "DELETE",
       });
       const data = await res.json();
 
       if (res.ok) {
-        // remove from completed set
-        setCompleted((prev) => {
-          const next = new Set(prev);
-          next.delete(habit.id);
-          return next;
-        });
-        // update streak in habits list
+        setLogs((prev) => prev.filter((l) => l.habitId !== habit.id));
         setHabits((prev) =>
           prev.map((h) =>
             h.id === habit.id ? { ...h, streak: data.streak } : h
@@ -91,16 +109,24 @@ export default function HabitsPage() {
         );
       }
     } else {
-      // check in → POST
-      const res = await fetch(`/api/habits/${habit.id}/checkin`, {
+      // regular check-in
+      const res  = await fetch(`/api/habits/${habit.id}/checkin`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isRestDay: false }),
       });
       const data = await res.json();
 
       if (res.ok) {
-        // add to completed set
-        setCompleted((prev) => new Set(prev).add(habit.id));
-        // update streak in habits list
+        setLogs((prev) => [
+          ...prev,
+          {
+            id:          Date.now().toString(),
+            habitId:     habit.id,
+            completedAt: new Date().toISOString(),
+            isRestDay:   false,
+          },
+        ]);
         setHabits((prev) =>
           prev.map((h) =>
             h.id === habit.id ? { ...h, streak: data.streak } : h
@@ -110,6 +136,35 @@ export default function HabitsPage() {
     }
 
     setChecking(null);
+  }
+
+  async function handleRestDay(habit: Habit) {
+    if (resting) return;
+    setResting(habit.id);
+
+    const res  = await fetch(`/api/habits/${habit.id}/checkin`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isRestDay: true }),
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      setLogs((prev) => [
+        ...prev,
+        {
+          id:          Date.now().toString(),
+          habitId:     habit.id,
+          completedAt: new Date().toISOString(),
+          isRestDay:   true,
+        },
+      ]);
+      // streak stays same on rest day — no update needed
+    } else {
+      alert(data.error ?? "Could not use rest day");
+    }
+
+    setResting(null);
   }
 
   async function handleDelete(id: string) {
@@ -129,17 +184,12 @@ export default function HabitsPage() {
     return matchSearch && matchCategory;
   });
 
-  const totalHabits = habits.length;
-
-// only count completed habits that exist in current list
-const completedCount = habits.filter((h) =>
-  completed.has(h.id)
-).length;
-
-const pending  = totalHabits - completedCount;
-const progress = totalHabits > 0
-  ? Math.round((completedCount / totalHabits) * 100)
-  : 0;
+  const totalHabits    = habits.length;
+  const completedCount = habits.filter((h) => isDoneToday(h.id)).length;
+  const pending        = totalHabits - completedCount;
+  const progress       = totalHabits > 0
+    ? Math.round((completedCount / totalHabits) * 100)
+    : 0;
 
   if (loading) {
     return (
@@ -259,11 +309,14 @@ const progress = totalHabits > 0
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filtered.map((habit) => {
-            const isDone   = completed.has(habit.id);
+            const done       = isDoneToday(habit.id);
+            const rests      = isRestingToday(habit.id);
+            const logged     = isLoggedToday(habit.id);
             const isChecking = checking === habit.id;
-            const tier     = getStreakTier(habit.streak ?? 0);
-            const target   = habit.targetDays || 30;
-            const barWidth = Math.min(
+            const isResting  = resting  === habit.id;
+            const tier       = getStreakTier(habit.streak ?? 0);
+            const target     = habit.targetDays || 30;
+            const barWidth   = Math.min(
               ((habit.streak ?? 0) / target) * 100,
               100
             );
@@ -272,8 +325,10 @@ const progress = totalHabits > 0
               <div key={habit.id} className="rounded-2xl p-5 transition-all"
                 style={{
                   background: "#0d0d16",
-                  border: `1px solid ${isDone
+                  border: `1px solid ${done
                     ? "rgba(99,102,241,0.25)"
+                    : rests
+                    ? "rgba(99,102,241,0.15)"
                     : "rgba(255,255,255,0.06)"}`,
                 }}>
 
@@ -281,35 +336,53 @@ const progress = totalHabits > 0
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
 
-                    {/* Checkbox — now actually saves to DB */}
+                    {/* Checkbox */}
                     <button
                       type="button"
-                      onClick={() => toggleComplete(habit)}
-                      disabled={isChecking}
+                      onClick={() => !rests && toggleComplete(habit)}
+                      disabled={isChecking || rests}
                       className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 transition-all disabled:opacity-50"
                       style={{
-                        border: isDone
+                        border: done
                           ? "none"
+                          : rests
+                          ? "2px solid rgba(99,102,241,0.3)"
                           : "2px solid rgba(255,255,255,0.15)",
-                        background: isDone ? habit.color : "transparent",
+                        background: done
+                          ? habit.color
+                          : rests
+                          ? "rgba(99,102,241,0.1)"
+                          : "transparent",
                       }}>
                       {isChecking ? (
                         <div className="w-3 h-3 rounded-full border border-white border-t-transparent animate-spin" />
-                      ) : isDone ? (
+                      ) : done ? (
                         <svg width="12" height="12" viewBox="0 0 24 24"
                           fill="none" stroke="#fff" strokeWidth="3">
                           <polyline points="20 6 9 17 4 12"/>
                         </svg>
+                      ) : rests ? (
+                        <span style={{ fontSize: "10px" }}>🛌</span>
                       ) : null}
                     </button>
 
-                    <span className="text-base font-semibold"
-                      style={{
-                        color: isDone ? "#4b5563" : "#fff",
-                        textDecoration: isDone ? "line-through" : "none",
-                      }}>
-                      {habit.title}
-                    </span>
+                    <div>
+                      <span className="text-base font-semibold"
+                        style={{
+                          color: done ? "#4b5563" : "#fff",
+                          textDecoration: done ? "line-through" : "none",
+                        }}>
+                        {habit.title}
+                      </span>
+
+                      {/* Rest days indicator */}
+                      {habit.restDaysPerWeek > 0 && (
+                        <div className="text-[10px] mt-0.5"
+                          style={{ color: "#4b5563" }}>
+                          🛌 {habit.restDaysPerWeek} rest day{habit.restDaysPerWeek > 1 ? "s" : ""}/week
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Edit + Delete */}
@@ -368,7 +441,7 @@ const progress = totalHabits > 0
                 </div>
 
                 {/* Progress bar */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 mb-3">
                   <div className="flex-1 h-1.5 rounded-full overflow-hidden"
                     style={{ background: "rgba(255,255,255,0.06)" }}>
                     <div className="h-full rounded-full transition-all"
@@ -382,6 +455,34 @@ const progress = totalHabits > 0
                     {Math.round(barWidth)}%
                   </span>
                 </div>
+
+                {/* ── REST DAY BUTTON ── */}
+                {habit.restDaysPerWeek > 0 && !logged && (
+                  <button
+                    type="button"
+                    onClick={() => handleRestDay(habit)}
+                    disabled={isResting}
+                    className="w-full py-2 rounded-xl text-xs font-medium transition-all disabled:opacity-50 mt-1"
+                    style={{
+                      background: "rgba(99,102,241,0.08)",
+                      border: "1px solid rgba(99,102,241,0.2)",
+                      color: "#a5b4fc",
+                    }}>
+                    {isResting ? "Using rest day..." : "🛌 Use Rest Day"}
+                  </button>
+                )}
+
+                {/* Resting today badge */}
+                {rests && (
+                  <div className="w-full py-2 rounded-xl text-xs font-medium text-center mt-1"
+                    style={{
+                      background: "rgba(99,102,241,0.08)",
+                      border: "1px solid rgba(99,102,241,0.15)",
+                      color: "#a5b4fc",
+                    }}>
+                    🛌 Resting Today — streak preserved ✨
+                  </div>
+                )}
 
               </div>
             );
