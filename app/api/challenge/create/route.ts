@@ -67,13 +67,31 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // auto-join creator
-  const { data: habit } = await supabase
+  // auto-join creator — find or create the habit
+  let { data: habit } = await supabase
     .from("Habit")
     .select("id")
     .eq("userId", userId)
     .ilike("title", `%${habitTitle}%`)
     .maybeSingle();
+
+  if (!habit) {
+    const { data: newHabit } = await supabase
+      .from("Habit")
+      .insert([{
+        title:           habitTitle,
+        category:        "Fitness",
+        color:           "#6366f1",
+        targetDays:      duration,
+        note:            "",
+        restDaysPerWeek: 0,
+        userId,
+        streak:          0,
+      }])
+      .select()
+      .single();
+    habit = newHabit;
+  }
 
   await supabase
     .from("RoomMember")

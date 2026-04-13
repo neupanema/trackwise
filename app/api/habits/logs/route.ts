@@ -15,9 +15,22 @@ export async function GET() {
   const tomorrow = new Date(today);
   tomorrow.setDate(today.getDate() + 1);
 
+  // get only this user's habit IDs first
+  const { data: habits } = await supabase
+    .from("Habit")
+    .select("id")
+    .eq("userId", session.user.id);
+
+  if (!habits || habits.length === 0) {
+    return NextResponse.json({ logs: [] });
+  }
+
+  const habitIds = habits.map((h) => h.id);
+
   const { data: logs, error } = await supabase
     .from("HabitLog")
-    .select("id, habitId, completedAt, isRestDay") // ← added isRestDay
+    .select("id, habitId, completedAt, isRestDay")
+    .in("habitId", habitIds)
     .gte("completedAt", today.toISOString())
     .lt("completedAt", tomorrow.toISOString());
 

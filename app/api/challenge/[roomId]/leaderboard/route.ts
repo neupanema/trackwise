@@ -121,14 +121,17 @@ export async function GET(
       if (member.habitid) {
         streak = await getHabitStreak(member.habitid);
       } else {
+        // habitid not linked — find the habit by title and calculate streak from logs
         const { data: habit } = await supabase
           .from("Habit")
-          .select("id, streak")
+          .select("id")
           .eq("userId", member.userid)
           .ilike("title", `%${room.habittitle}%`)
           .maybeSingle();
 
-        streak = habit?.streak ?? 0;
+        if (habit?.id) {
+          streak = await getHabitStreak(habit.id);
+        }
       }
 
       return {

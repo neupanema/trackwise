@@ -136,6 +136,8 @@ export async function DELETE(
     return NextResponse.json({ error: "Not logged in" }, { status: 401 });
   }
 
+  // clear habitid from any challenge room memberships so leaderboard falls back gracefully
+  await supabase.from("RoomMember").update({ habitid: null }).eq("habitid", id);
   // delete logs first then habit
   await supabase.from("HabitLog").delete().eq("habitId", id);
   await supabase.from("Habit").delete().eq("id", id).eq("userId", session.user.id);

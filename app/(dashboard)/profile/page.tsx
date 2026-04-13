@@ -8,6 +8,7 @@ export default function ProfilePage() {
   const [darkMode,      setDarkMode]      = useState(false);
   const [reminders,     setReminders]     = useState(false);
   const [streakAlerts,  setStreakAlerts]  = useState(true);
+  const [saveError,     setSaveError]     = useState("");
   const [name,          setName]          = useState("");
   const [email,         setEmail]         = useState("");
   const [saving,        setSaving]        = useState(false);
@@ -23,9 +24,13 @@ export default function ProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const stored = localStorage.getItem("darkMode") === "true";
-    setDarkMode(stored);
-    if (stored) document.documentElement.classList.add("dark");
+    const storedDark     = localStorage.getItem("darkMode")     === "true";
+    const storedRemind   = localStorage.getItem("reminders")    === "true";
+    const storedAlerts   = localStorage.getItem("streakAlerts") !== "false";
+    setDarkMode(storedDark);
+    setReminders(storedRemind);
+    setStreakAlerts(storedAlerts);
+    if (storedDark) document.documentElement.classList.add("dark");
   }, []);
 
   useEffect(() => {
@@ -111,9 +116,36 @@ export default function ProfilePage() {
     else document.documentElement.classList.remove("dark");
   }
 
+  function toggleReminders() {
+    const next = !reminders;
+    setReminders(next);
+    localStorage.setItem("reminders", String(next));
+  }
+
+  function toggleStreakAlerts() {
+    const next = !streakAlerts;
+    setStreakAlerts(next);
+    localStorage.setItem("streakAlerts", String(next));
+  }
+
   async function handleSave() {
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 800));
+    setSaveError("");
+
+    const res = await fetch("/api/user", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      setSaveError(data.error ?? "Failed to save");
+      setSaving(false);
+      return;
+    }
+
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -328,6 +360,12 @@ export default function ProfilePage() {
               }}
             />
 
+            {saveError && (
+              <div className="mb-3 px-3 py-2 rounded-xl text-xs"
+                style={{ background: "rgba(239,68,68,0.1)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" }}>
+                {saveError}
+              </div>
+            )}
             <button
               onClick={handleSave}
               disabled={saving}
@@ -342,8 +380,8 @@ export default function ProfilePage() {
 
             {[
               { label: "Dark Mode",      sub: "Use dark theme",            value: darkMode,     toggle: toggleDarkMode                      },
-              { label: "Daily Reminder", sub: "Remind me to check in",     value: reminders,    toggle: () => setReminders(!reminders)      },
-              { label: "Streak Alerts",  sub: "Alert when streak at risk",  value: streakAlerts, toggle: () => setStreakAlerts(!streakAlerts) },
+              { label: "Daily Reminder", sub: "Remind me to check in",     value: reminders,    toggle: toggleReminders    },
+              { label: "Streak Alerts",  sub: "Alert when streak at risk",  value: streakAlerts, toggle: toggleStreakAlerts },
             ].map((item) => (
               <div key={item.label}
                 className="flex items-center justify-between py-3"

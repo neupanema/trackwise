@@ -87,7 +87,7 @@ export default function LeaderboardPage() {
 
   async function fetchRooms() {
     setLoading(true);
-    const res  = await fetch("/api/challenge/rooms");
+    const res  = await fetch("/api/challenge/room");
     const json = await res.json();
     setRooms(json.rooms ?? []);
     setLoading(false);

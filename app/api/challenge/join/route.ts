@@ -49,12 +49,30 @@ export async function POST(req: Request) {
     });
   }
 
-  const { data: habit } = await supabase
+  let { data: habit } = await supabase
     .from("Habit")
     .select("id")
     .eq("userId", userId)
     .ilike("title", `%${room.habittitle}%`)
     .maybeSingle();
+
+  if (!habit) {
+    const { data: newHabit } = await supabase
+      .from("Habit")
+      .insert([{
+        title:           room.habittitle,
+        category:        "Fitness",
+        color:           "#6366f1",
+        targetDays:      room.duration ?? 30,
+        note:            "",
+        restDaysPerWeek: 0,
+        userId,
+        streak:          0,
+      }])
+      .select()
+      .single();
+    habit = newHabit;
+  }
 
   await supabase
     .from("RoomMember")
