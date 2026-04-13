@@ -16,12 +16,11 @@ export async function POST(req: Request) {
 
   const userId = session.user.id;
 
-  // find the room
   const { data: room } = await supabase
     .from("ChallengeRoom")
     .select("*")
-    .eq("inviteCode", inviteCode.toUpperCase().trim())
-    .eq("isActive", true)
+    .eq("invitecode", inviteCode.toUpperCase().trim())
+    .eq("isactive", true)
     .maybeSingle();
 
   if (!room) {
@@ -31,34 +30,47 @@ export async function POST(req: Request) {
     );
   }
 
-  // check if already a member
   const { data: existing } = await supabase
     .from("RoomMember")
     .select("id")
-    .eq("roomId", room.id)
-    .eq("userId", userId)
+    .eq("roomid", room.id)
+    .eq("userid", userId)
     .maybeSingle();
 
   if (existing) {
-    return NextResponse.json({ room, alreadyMember: true });
+    return NextResponse.json({
+      room: {
+        ...room,
+        habitTitle: room.habittitle,
+        inviteCode: room.invitecode,
+        endDate:    room.enddate,
+      },
+      alreadyMember: true
+    });
   }
 
-  // find their matching habit
   const { data: habit } = await supabase
     .from("Habit")
     .select("id")
     .eq("userId", userId)
-    .ilike("title", `%${room.habitTitle}%`)
+    .ilike("title", `%${room.habittitle}%`)
     .maybeSingle();
 
-  // join the room
   await supabase
     .from("RoomMember")
     .insert([{
-      roomId:  room.id,
-      userId,
-      habitId: habit?.id ?? null,
+      roomid:  room.id,
+      userid:  userId,
+      habitid: habit?.id ?? null,
     }]);
 
-  return NextResponse.json({ room, alreadyMember: false });
+  return NextResponse.json({
+    room: {
+      ...room,
+      habitTitle: room.habittitle,
+      inviteCode: room.invitecode,
+      endDate:    room.enddate,
+    },
+    alreadyMember: false
+  });
 }

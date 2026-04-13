@@ -4,30 +4,42 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   const session = await auth();
+
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Not logged in" }, { status: 401 });
   }
 
   const userId = session.user.id;
 
-  // get all rooms user is a member of
   const { data: memberships } = await supabase
     .from("RoomMember")
-    .select("roomId")
-    .eq("userId", userId);
+    .select("roomid")
+    .eq("userid", userId);
 
   if (!memberships || memberships.length === 0) {
     return NextResponse.json({ rooms: [] });
   }
 
-  const roomIds = memberships.map((m) => m.roomId);
+  const roomIds = memberships.map((m) => m.roomid);
 
   const { data: rooms } = await supabase
     .from("ChallengeRoom")
     .select("*")
     .in("id", roomIds)
-    .eq("isActive", true)
-    .order("createdAt", { ascending: false });
+    .eq("isactive", true)
+    .order("createdat", { ascending: false });
 
-  return NextResponse.json({ rooms: rooms ?? [] });
+  // normalize to camelCase for frontend
+  const normalized = (rooms ?? []).map((r) => ({
+    ...r,
+    habitTitle: r.habittitle,
+    inviteCode: r.invitecode,
+    createdBy:  r.createdby,
+    startDate:  r.startdate,
+    endDate:    r.enddate,
+    isActive:   r.isactive,
+    createdAt:  r.createdat,
+  }));
+
+  return NextResponse.json({ rooms: normalized });
 }

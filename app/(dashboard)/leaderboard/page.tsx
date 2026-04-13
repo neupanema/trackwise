@@ -391,36 +391,67 @@ export default function LeaderboardPage() {
             </div>
 
           ) : rooms.length === 0 ? (
-            <div className="rounded-2xl p-12 text-center"
-              style={{ background: "#0d0d16", border: "1px solid rgba(255,255,255,0.06)" }}>
-              <div className="text-4xl mb-4">🏁</div>
-              <div className="text-white font-medium mb-2">
-                No challenges yet!
-              </div>
-              <div className="text-sm mb-6" style={{ color: "#4b5563" }}>
-                Create a new challenge or join one with an invite code
-              </div>
-              <div className="flex gap-3 justify-center">
-                <button
-                  type="button"
-                  onClick={() => setTab("create")}
-                  className="px-4 py-2 rounded-xl text-sm font-semibold text-white"
-                  style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}>
-                  Create Challenge
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTab("join")}
-                  className="px-4 py-2 rounded-xl text-sm font-medium"
-                  style={{
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    color: "#9ca3af",
-                  }}>
-                  Join with Code
-                </button>
-              </div>
-            </div>
+  <div>
+    <div className="rounded-2xl p-12 text-center"
+      style={{ background: "#0d0d16", border: "1px solid rgba(255,255,255,0.06)" }}>
+      <div className="text-5xl mb-4">🏁</div>
+      <div className="text-white font-semibold text-lg mb-2">
+        No challenges yet!
+      </div>
+      <div className="text-sm mb-2" style={{ color: "#4b5563" }}>
+        You haven't joined or created any challenges.
+      </div>
+      <div className="text-sm mb-6" style={{ color: "#4b5563" }}>
+        Challenge your friends and compete on streaks — privately.
+      </div>
+      <div className="rounded-xl p-4 mb-6 text-left"
+        style={{
+          background: "rgba(99,102,241,0.08)",
+          border: "1px solid rgba(99,102,241,0.15)",
+        }}>
+        <p className="text-xs font-medium mb-2" style={{ color: "#a5b4fc" }}>
+          How challenges work:
+        </p>
+        {[
+          "Create a room and pick a habit to compete on",
+          "Share your 6-letter invite code with friends",
+          "Friends join and add the same habit",
+          "Leaderboard ranks everyone by streak — not check-ins",
+          "Only room members can see the leaderboard 🔒",
+        ].map((step, i) => (
+          <div key={i} className="flex items-start gap-2 mb-1.5">
+            <span className="text-xs font-bold flex-shrink-0"
+              style={{ color: "#6366f1" }}>
+              {i + 1}.
+            </span>
+            <span className="text-xs" style={{ color: "#6b7280" }}>
+              {step}
+            </span>
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-3 justify-center">
+        <button
+          type="button"
+          onClick={() => setTab("create")}
+          className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white"
+          style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}>
+          🏁 Create Challenge
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("join")}
+          className="px-5 py-2.5 rounded-xl text-sm font-medium"
+          style={{
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            color: "#9ca3af",
+          }}>
+          🚪 Join with Code
+        </button>
+      </div>
+    </div>
+  </div>
 
           ) : (
             <div className="flex flex-col gap-3">

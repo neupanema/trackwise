@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     const { data: existing } = await supabase
       .from("ChallengeRoom")
       .select("id")
-      .eq("inviteCode", inviteCode)
+      .eq("invitecode", inviteCode)
       .maybeSingle();
 
     if (!existing) break;
@@ -44,23 +44,21 @@ export async function POST(req: Request) {
     attempts++;
   }
 
-  // calculate end date
   const startDate = new Date();
   const endDate   = new Date();
   endDate.setDate(endDate.getDate() + duration);
 
-  // create room
   const { data: room, error } = await supabase
     .from("ChallengeRoom")
     .insert([{
       name,
-      habitTitle,
-      inviteCode,
-      createdBy: userId,
+      habittitle:  habitTitle,
+      invitecode:  inviteCode,
+      createdby:   userId,
       duration,
-      startDate:  startDate.toISOString(),
-      endDate:    endDate.toISOString(),
-      isActive:   true,
+      startdate:   startDate.toISOString(),
+      enddate:     endDate.toISOString(),
+      isactive:    true,
     }])
     .select()
     .single();
@@ -69,8 +67,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // auto-join creator as member
-  // find their habit that matches habitTitle
+  // auto-join creator
   const { data: habit } = await supabase
     .from("Habit")
     .select("id")
@@ -81,10 +78,22 @@ export async function POST(req: Request) {
   await supabase
     .from("RoomMember")
     .insert([{
-      roomId:  room.id,
-      userId,
-      habitId: habit?.id ?? null,
+      roomid:  room.id,
+      userid:  userId,
+      habitid: habit?.id ?? null,
     }]);
 
-  return NextResponse.json({ room }, { status: 201 });
+  // return with camelCase for frontend
+  return NextResponse.json({
+    room: {
+      ...room,
+      habitTitle:  room.habittitle,
+      inviteCode:  room.invitecode,
+      createdBy:   room.createdby,
+      startDate:   room.startdate,
+      endDate:     room.enddate,
+      isActive:    room.isactive,
+      createdAt:   room.createdat,
+    }
+  }, { status: 201 });
 }

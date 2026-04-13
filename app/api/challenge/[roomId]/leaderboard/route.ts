@@ -22,8 +22,8 @@ async function getHabitStreak(habitId: string): Promise<number> {
     logs.map((log) => toDateString(new Date(log.completedAt)))
   );
 
-  let streak    = 0;
-  const today   = new Date();
+  let streak  = 0;
+  const today = new Date();
 
   for (let i = 0; i < 365; i++) {
     const checkDate = new Date(today);
@@ -53,12 +53,12 @@ export async function GET(
 
   const userId = session.user.id;
 
-  // verify user is a member of this room
+  // verify membership
   const { data: membership } = await supabase
     .from("RoomMember")
     .select("id")
-    .eq("roomId", roomId)
-    .eq("userId", userId)
+    .eq("roomid", roomId)
+    .eq("userid", userId)
     .maybeSingle();
 
   if (!membership) {
@@ -68,7 +68,7 @@ export async function GET(
     );
   }
 
-  // get room details
+  // get room
   const { data: room } = await supabase
     .from("ChallengeRoom")
     .select("*")
@@ -79,63 +79,72 @@ export async function GET(
     return NextResponse.json({ error: "Room not found" }, { status: 404 });
   }
 
-  // get all members
+  // normalize room
+  const normalizedRoom = {
+    ...room,
+    habitTitle: room.habittitle,
+    inviteCode: room.invitecode,
+    createdBy:  room.createdby,
+    startDate:  room.startdate,
+    endDate:    room.enddate,
+    isActive:   room.isactive,
+    createdAt:  room.createdat,
+  };
+
+  // get members
   const { data: members } = await supabase
     .from("RoomMember")
-    .select("userId, habitId, joinedAt")
-    .eq("roomId", roomId);
+    .select("userid, habitid, joinedat")
+    .eq("roomid", roomId);
 
   if (!members || members.length === 0) {
-    return NextResponse.json({ room, leaderboard: [] });
+    return NextResponse.json({ room: normalizedRoom, leaderboard: [] });
   }
 
-  const userIds = members.map((m) => m.userId);
+  const userIds = members.map((m) => m.userid);
 
-  // get user info
   const { data: users } = await supabase
     .from("User")
     .select("id, name, image")
     .in("id", userIds);
 
   if (!users) {
-    return NextResponse.json({ room, leaderboard: [] });
+    return NextResponse.json({ room: normalizedRoom, leaderboard: [] });
   }
 
-  // build leaderboard with streak for each member's habit
+  // build leaderboard
   const leaderboard = await Promise.all(
     members.map(async (member) => {
-      const user   = users.find((u) => u.id === member.userId);
-      let streak   = 0;
+      const user  = users.find((u) => u.id === member.userid);
+      let streak  = 0;
 
-      if (member.habitId) {
-        streak = await getHabitStreak(member.habitId);
+      if (member.habitid) {
+        streak = await getHabitStreak(member.habitid);
       } else {
-        // try to find their habit by title
         const { data: habit } = await supabase
           .from("Habit")
           .select("id, streak")
-          .eq("userId", member.userId)
-          .ilike("title", `%${room.habitTitle}%`)
+          .eq("userId", member.userid)
+          .ilike("title", `%${room.habittitle}%`)
           .maybeSingle();
 
         streak = habit?.streak ?? 0;
       }
 
       return {
-        userId:   member.userId,
-        name:     user?.name    ?? "Unknown",
-        image:    user?.image   ?? null,
+        userId:   member.userid,
+        name:     user?.name  ?? "Unknown",
+        image:    user?.image ?? null,
         streak,
-        isYou:    member.userId === userId,
-        joinedAt: member.joinedAt,
+        isYou:    member.userid === userId,
+        joinedAt: member.joinedat,
       };
     })
   );
 
-  // sort by streak descending
   const sorted = leaderboard
     .sort((a, b) => b.streak - a.streak)
     .map((entry, index) => ({ ...entry, rank: index + 1 }));
 
-  return NextResponse.json({ room, leaderboard: sorted });
+  return NextResponse.json({ room: normalizedRoom, leaderboard: sorted });
 }
