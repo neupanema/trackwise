@@ -46,6 +46,8 @@ export default function AddHabitPage() {
   const [aiLoading,   setAiLoading]   = useState(false);
   const [aiError,     setAiError]     = useState("");
   const [showAI,      setShowAI]      = useState(true);
+  const [addingIdx,   setAddingIdx]   = useState<number | null>(null);
+  const [addedCount,  setAddedCount]  = useState(0);
 
   // ── Get AI suggestions ──
   async function handleGetSuggestions() {
@@ -56,6 +58,7 @@ export default function AddHabitPage() {
     setAiLoading(true);
     setAiError("");
     setSuggestions([]);
+    setAddedCount(0);
 
     const res  = await fetch("/api/ai-suggest", {
       method: "POST",
@@ -85,7 +88,8 @@ export default function AddHabitPage() {
   }
 
   // ── Add suggestion directly without filling form ──
-  async function addSuggestionDirectly(s: AISuggestion) {
+  async function addSuggestionDirectly(s: AISuggestion, idx: number) {
+    setAddingIdx(idx);
     const res = await fetch("/api/habits", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -98,7 +102,14 @@ export default function AddHabitPage() {
         restDaysPerWeek: 0,
       }),
     });
-    if (res.ok) router.push("/habits");
+    setAddingIdx(null);
+    if (res.ok) {
+      setSuggestions((prev) => prev.filter((_, i) => i !== idx));
+      setAddedCount((n) => n + 1);
+    } else {
+      const data = await res.json();
+      setAiError(data.error ?? "Failed to add habit");
+    }
   }
 
   // ── Submit form ──
@@ -217,6 +228,23 @@ export default function AddHabitPage() {
               </div>
             )}
 
+            {/* Added count banner */}
+            {addedCount > 0 && (
+              <div className="flex items-center justify-between px-3 py-2 rounded-xl mb-3"
+                style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)" }}>
+                <span className="text-xs" style={{ color: "#4ade80" }}>
+                  ✅ {addedCount} habit{addedCount > 1 ? "s" : ""} added!
+                </span>
+                <button
+                  type="button"
+                  onClick={() => router.push("/habits")}
+                  className="text-[10px] px-2.5 py-1 rounded-lg font-medium"
+                  style={{ background: "rgba(34,197,94,0.15)", color: "#4ade80" }}>
+                  View Habits →
+                </button>
+              </div>
+            )}
+
             {/* Suggestions */}
             {suggestions.length > 0 && (
               <div className="flex flex-col gap-2">
@@ -246,10 +274,11 @@ export default function AddHabitPage() {
                     <div className="flex flex-col gap-1.5 flex-shrink-0">
                       <button
                         type="button"
-                        onClick={() => addSuggestionDirectly(s)}
-                        className="text-[10px] px-2.5 py-1 rounded-lg font-medium text-white"
+                        onClick={() => addSuggestionDirectly(s, i)}
+                        disabled={addingIdx !== null}
+                        className="text-[10px] px-2.5 py-1 rounded-lg font-medium text-white disabled:opacity-50"
                         style={{ background: s.color }}>
-                        + Add
+                        {addingIdx === i ? "..." : "+ Add"}
                       </button>
                       <button
                         type="button"
