@@ -158,10 +158,9 @@ export async function POST(
     // rest day → streak stays FROZEN (same value)
     newStreak = habit?.streak ?? 0;
   } else {
-    // normal check-in → streak grows
-    const streak        = await calculateStreak(id);
-    const currentStreak = habit?.streak ?? 0;
-    newStreak           = Math.max(streak, currentStreak + 1);
+    // normal check-in → recalculate from actual logs (source of truth)
+    // calculateStreak runs after insertion so today's log is included
+    newStreak = await calculateStreak(id);
   }
 
   await supabase
@@ -206,17 +205,8 @@ export async function DELETE(
     .delete()
     .eq("id", existing.id);
 
-  const { data: habit } = await supabase
-    .from("Habit")
-    .select("streak")
-    .eq("id", id)
-    .maybeSingle();
-
-  // undo rest day → streak unchanged
-  // undo check-in → streak -1
-  const newStreak = existing.isRestDay
-    ? (habit?.streak ?? 0)
-    : Math.max((habit?.streak ?? 1) - 1, 0);
+  // recalculate streak from remaining logs (source of truth)
+  const newStreak = await calculateStreak(id);
 
   await supabase
     .from("Habit")
