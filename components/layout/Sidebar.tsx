@@ -9,6 +9,8 @@ import {
   User,
   LogOut,
   Trophy, // ← add this
+   Plus, 
+ BarChart2,
 } from "lucide-react";
 
 const navItems = [
@@ -17,6 +19,7 @@ const navItems = [
   { label: "Add Habit",   href: "/add",         icon: PlusCircle },
   { label: "Leaderboard", href: "/leaderboard", icon: Trophy }, // ← added
   { label: "Profile",     href: "/profile",     icon: User },
+  { href: "/history", label: "History", icon: BarChart2 },
 ];
 
 export default function Sidebar() {
