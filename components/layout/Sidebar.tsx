@@ -5,21 +5,28 @@ import { signOut, useSession } from "next-auth/react";
 import {
   LayoutDashboard,
   CheckSquare,
-  PlusCircle,
+  Plus,
   User,
   LogOut,
-  Trophy, // ← add this
-   Plus, 
- BarChart2,
+  Trophy,
+  BarChart2,
 } from "lucide-react";
 
 const navItems = [
   { label: "Dashboard",   href: "/dashboard",   icon: LayoutDashboard },
   { label: "Habits",      href: "/habits",      icon: CheckSquare },
-  { label: "Add Habit",   href: "/add",         icon: PlusCircle },
-  { label: "Leaderboard", href: "/leaderboard", icon: Trophy }, // ← added
+  { label: "Leaderboard", href: "/leaderboard", icon: Trophy },
+  { label: "History",     href: "/history",     icon: BarChart2 },
   { label: "Profile",     href: "/profile",     icon: User },
-  { href: "/history", label: "History", icon: BarChart2 },
+];
+
+const allSidebarItems = [
+  { label: "Dashboard",   href: "/dashboard",   icon: LayoutDashboard },
+  { label: "Habits",      href: "/habits",      icon: CheckSquare },
+  { label: "Add Habit",   href: "/add",         icon: Plus },
+  { label: "Leaderboard", href: "/leaderboard", icon: Trophy },
+  { label: "Profile",     href: "/profile",     icon: User },
+  { label: "History",     href: "/history",     icon: BarChart2 },
 ];
 
 export default function Sidebar() {
@@ -43,7 +50,7 @@ export default function Sidebar() {
           style={{ color: "#374151" }}>Menu</div>
 
         <nav className="flex flex-col gap-0.5 px-3">
-          {navItems.map(({ label, href, icon: Icon }) => {
+          {allSidebarItems.map(({ label, href, icon: Icon }) => {
             const active = pathname === href;
             return (
               <Link key={href} href={href}
@@ -98,22 +105,64 @@ export default function Sidebar() {
       </aside>
 
       {/* ── MOBILE BOTTOM NAV ── */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around px-2 py-2"
-        style={{ background: "#0d0d16", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-        {navItems.map(({ label, href, icon: Icon }) => {
-          const active = pathname === href;
-          return (
-            <Link key={href} href={href}
-              className="flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl transition-all"
-              style={{ minWidth: "60px" }}>
-              <Icon size={20} color={active ? "#a5b4fc" : "#4b5563"} />
-              <span className="text-[10px]"
-                style={{ color: active ? "#a5b4fc" : "#4b5563", fontWeight: active ? 500 : 400 }}>
-                {label}
-              </span>
-            </Link>
-          );
-        })}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50"
+        style={{ background: "rgba(13,13,22,0.97)", borderTop: "1px solid rgba(255,255,255,0.06)", backdropFilter: "blur(12px)" }}>
+        <div className="flex items-end justify-around px-1 pb-safe">
+          {navItems.slice(0, 2).map(({ label, href, icon: Icon }) => {
+            const active = pathname === href;
+            return (
+              <Link key={href} href={href}
+                className="flex flex-col items-center gap-1 pt-3 pb-3 px-3 relative"
+                style={{ minWidth: "56px" }}>
+                {active && (
+                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full"
+                    style={{ background: "linear-gradient(90deg,#6366f1,#8b5cf6)" }} />
+                )}
+                <Icon size={19} color={active ? "#a5b4fc" : "#374151"} strokeWidth={active ? 2 : 1.75} />
+                <span className="text-[10px] font-medium"
+                  style={{ color: active ? "#a5b4fc" : "#374151" }}>
+                  {label}
+                </span>
+              </Link>
+            );
+          })}
+
+          {/* Center FAB */}
+          <Link href="/add"
+            className="flex flex-col items-center -mt-4 pb-2"
+            style={{ minWidth: "64px" }}>
+            <span className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg"
+              style={{
+                background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+                boxShadow: "0 4px 20px rgba(99,102,241,0.45)",
+              }}>
+              <Plus size={22} color="white" strokeWidth={2.5} />
+            </span>
+            <span className="text-[10px] font-medium mt-1"
+              style={{ color: pathname === "/add" ? "#a5b4fc" : "#374151" }}>
+              Add
+            </span>
+          </Link>
+
+          {navItems.slice(2).map(({ label, href, icon: Icon }) => {
+            const active = pathname === href;
+            return (
+              <Link key={href} href={href}
+                className="flex flex-col items-center gap-1 pt-3 pb-3 px-3 relative"
+                style={{ minWidth: "56px" }}>
+                {active && (
+                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full"
+                    style={{ background: "linear-gradient(90deg,#6366f1,#8b5cf6)" }} />
+                )}
+                <Icon size={19} color={active ? "#a5b4fc" : "#374151"} strokeWidth={active ? 2 : 1.75} />
+                <span className="text-[10px] font-medium"
+                  style={{ color: active ? "#a5b4fc" : "#374151" }}>
+                  {label}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
       </nav>
     </>
   );
