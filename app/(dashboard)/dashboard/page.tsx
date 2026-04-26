@@ -102,7 +102,7 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="mb-7">
         <h1 className="text-2xl font-bold text-white mb-1 tracking-tight">
-          Welcome back, {session?.user?.name?.split(" ")[0]} 👋
+          Welcome back, {session?.user?.name?.split(" ")[0] ?? "there"} 👋
         </h1>
         <p className="text-sm" style={{ color: "#4b5563" }}>
           Track your habits and stay motivated every day.

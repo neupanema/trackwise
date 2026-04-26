@@ -77,6 +77,10 @@ export default function ProfilePage() {
 
     // convert file to base64
     const reader = new FileReader();
+    reader.onerror = () => {
+      alert("Could not read the image file. Please try again.");
+      setUploading(false);
+    };
     reader.onloadend = async () => {
       const base64 = reader.result as string;
 

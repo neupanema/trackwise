@@ -88,7 +88,7 @@ export default function HabitsPage() {
   }
 
   async function toggleComplete(habit: Habit) {
-    if (checking) return;
+    if (checking || resting) return;
     setChecking(habit.id);
 
     const alreadyLogged = isLoggedToday(habit.id);
@@ -139,7 +139,7 @@ export default function HabitsPage() {
   }
 
   async function handleRestDay(habit: Habit) {
-    if (resting) return;
+    if (resting || checking) return;
     setResting(habit.id);
 
     const res  = await fetch(`/api/habits/${habit.id}/checkin`, {
@@ -173,8 +173,12 @@ export default function HabitsPage() {
     );
     if (!confirmed) return;
     setDeleting(id);
-    await fetch(`/api/habits/${id}`, { method: "DELETE" });
-    setHabits((prev) => prev.filter((h) => h.id !== id));
+    const res = await fetch(`/api/habits/${id}`, { method: "DELETE" });
+    if (res.ok) {
+      setHabits((prev) => prev.filter((h) => h.id !== id));
+    } else {
+      alert("Failed to delete habit. Please try again.");
+    }
     setDeleting(null);
   }
 

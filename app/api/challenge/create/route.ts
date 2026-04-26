@@ -26,6 +26,13 @@ export async function POST(req: Request) {
     );
   }
 
+  if (!Number.isInteger(duration) || duration < 1 || duration > 365) {
+    return NextResponse.json(
+      { error: "Duration must be between 1 and 365 days" },
+      { status: 400 }
+    );
+  }
+
   const userId = session.user.id;
 
   // generate unique invite code

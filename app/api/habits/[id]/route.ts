@@ -136,6 +136,18 @@ export async function DELETE(
     return NextResponse.json({ error: "Not logged in" }, { status: 401 });
   }
 
+  // verify ownership before touching any related rows
+  const { data: owned } = await supabase
+    .from("Habit")
+    .select("id")
+    .eq("id", id)
+    .eq("userId", session.user.id)
+    .maybeSingle();
+
+  if (!owned) {
+    return NextResponse.json({ error: "Habit not found" }, { status: 404 });
+  }
+
   // clear habitid from any challenge room memberships so leaderboard falls back gracefully
   await supabase.from("RoomMember").update({ habitid: null }).eq("habitid", id);
   // delete logs first then habit

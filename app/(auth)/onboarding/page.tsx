@@ -65,11 +65,24 @@ useEffect(() => {
       selected.includes(h.title)
     );
 
-    await fetch("/api/onboarding", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ habits, targetDays }),
-    });
+    try {
+      const res = await fetch("/api/onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ habits, targetDays }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error ?? "Setup failed. Please try again.");
+        setLoading(false);
+        return;
+      }
+    } catch {
+      alert("Network error. Please try again.");
+      setLoading(false);
+      return;
+    }
 
     router.push("/dashboard");
   }
